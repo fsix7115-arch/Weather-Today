@@ -682,4 +682,940 @@ body {
 }
 @media (max-width: 420px) {
   .details-grid { grid-template-columns: repeat(2, 1fr); }
-  
+  .hero-card { padding: 1.4rem 1.2rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- Background layers -->
+<canvas id="bg-canvas"></canvas>
+<div class="bg-overlay" id="bg-overlay"></div>
+<div class="noise-layer"></div>
+<canvas id="rain-layer"></canvas>
+<canvas id="snow-layer"></canvas>
+<div id="lightning-layer"></div>
+<canvas id="fog-layer"></canvas>
+<canvas id="stars-layer"></canvas>
+
+<div class="app-wrapper">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-glass"></div>
+    <a href="index.html" class="back-link">
+      <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2L4 7l5 5"/></svg>
+    </a>
+    <a href="index.html" class="logo">Aether</a>
+    <div class="header-actions">
+      <div class="unit-toggle">
+        <button class="unit-btn active" id="btn-c" onclick="setUnit('c')">°C</button>
+        <button class="unit-btn" id="btn-f" onclick="setUnit('f')">°F</button>
+      </div>
+      <button class="icon-btn" onclick="detectLocation(true)" title="Detect location">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="9" stroke-opacity="0.3"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Search -->
+  <div class="search-container">
+    <div class="search-box">
+      <span class="search-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      </span>
+      <input type="text" class="search-input" id="search-input" placeholder="Search city, town or place..." autocomplete="off" spellcheck="false"/>
+      <button class="search-btn" onclick="doSearch()">Search</button>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <main class="content" id="main-content">
+
+    <!-- Hero Weather Card -->
+    <div class="hero-card" id="hero-card">
+      <div>
+        <div class="location-row">
+          <span class="location-pin">📍</span>
+          <span class="location-name" id="loc-name">—</span>
+          <span class="location-time" id="loc-time">—</span>
+        </div>
+        <div class="temp-display" id="temp-display">—<span class="temp-unit">°</span></div>
+        <div class="condition-row">
+          <span class="condition-label" id="condition-label">—</span>
+        </div>
+        <div class="hi-lo" id="hi-lo">H: <span>—</span> · L: <span>—</span></div>
+      </div>
+      <div class="weather-icon-wrap">
+        <span class="weather-icon-big" id="main-icon">🌤</span>
+        <div class="feels-like">Feels like <strong id="feels-like">—</strong></div>
+      </div>
+    </div>
+
+    <!-- Details grid -->
+    <div class="details-grid">
+      <div class="detail-card">
+        <div class="detail-icon">💧</div>
+        <div class="detail-label">Humidity</div>
+        <div class="detail-value" id="d-humidity">—</div>
+        <div class="detail-sub" id="d-humidity-sub">—</div>
+      </div>
+      <div class="detail-card">
+        <div class="detail-icon">💨</div>
+        <div class="detail-label">Wind</div>
+        <div class="detail-value" id="d-wind">—</div>
+        <div class="detail-sub" id="d-wind-dir">—</div>
+      </div>
+      <div class="detail-card">
+        <div class="detail-icon">🔆</div>
+        <div class="detail-label">UV Index</div>
+        <div class="detail-value" id="d-uv">—</div>
+        <div class="detail-sub" id="d-uv-label">—</div>
+      </div>
+      <div class="detail-card">
+        <div class="detail-icon">👁</div>
+        <div class="detail-label">Visibility</div>
+        <div class="detail-value" id="d-visibility">—</div>
+        <div class="detail-sub">km</div>
+      </div>
+      <div class="detail-card">
+        <div class="detail-icon">🌡</div>
+        <div class="detail-label">Pressure</div>
+        <div class="detail-value" id="d-pressure">—</div>
+        <div class="detail-sub">hPa</div>
+      </div>
+      <div class="detail-card">
+        <div class="detail-icon">🌧</div>
+        <div class="detail-label">Precipitation</div>
+        <div class="detail-value" id="d-precip">—</div>
+        <div class="detail-sub">mm last hour</div>
+      </div>
+      <div class="detail-card">
+        <div class="detail-icon">☁️</div>
+        <div class="detail-label">Cloud Cover</div>
+        <div class="detail-value" id="d-cloud">—</div>
+        <div class="detail-sub">—</div>
+      </div>
+      <div class="detail-card">
+        <div class="detail-icon">🌊</div>
+        <div class="detail-label">Dew Point</div>
+        <div class="detail-value" id="d-dew">—</div>
+        <div class="detail-sub">—</div>
+      </div>
+    </div>
+
+    <!-- Mid grid: Sun card + AQI card -->
+    <div class="mid-grid">
+      <div class="sun-card">
+        <p class="card-title">Sun Journey</p>
+        <div class="sun-arc-wrap">
+          <svg class="sun-arc-svg" id="sun-arc" viewBox="0 0 300 80" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="arcGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="rgba(255,180,50,0.2)"/>
+                <stop offset="50%" stop-color="rgba(255,220,100,0.7)"/>
+                <stop offset="100%" stop-color="rgba(255,130,50,0.2)"/>
+              </linearGradient>
+            </defs>
+            <path d="M10,75 Q150,-10 290,75" fill="none" stroke="url(#arcGrad)" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>
+            <circle id="sun-dot" cx="150" cy="15" r="6" fill="rgba(255,210,80,0.9)" filter="url(#sunGlow)"/>
+            <defs>
+              <filter id="sunGlow"><feGaussianBlur in="SourceGraphic" stdDeviation="3"/></filter>
+            </defs>
+            <circle id="sun-dot-core" cx="150" cy="15" r="3.5" fill="#ffe066"/>
+          </svg>
+        </div>
+        <div class="sun-times">
+          <div class="sun-time-item">
+            <div class="sun-time-label">🌅 Sunrise</div>
+            <div class="sun-time-value" id="sunrise-val">—</div>
+          </div>
+          <div class="sun-time-item">
+            <div class="sun-time-label">🌇 Sunset</div>
+            <div class="sun-time-value" id="sunset-val">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="aqi-card">
+        <p class="card-title">Air Quality</p>
+        <div class="aqi-number" id="aqi-number">—</div>
+        <div class="aqi-label" id="aqi-label">Loading…</div>
+        <div class="aqi-bar-track">
+          <div class="aqi-bar-fill" id="aqi-bar" style="width:0%; background: linear-gradient(90deg,#4ecb71,#f0c030)"></div>
+        </div>
+        <div class="aqi-scale">
+          <span>Good</span><span>Moderate</span><span>Unhealthy</span><span>Hazardous</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hourly forecast -->
+    <div class="hourly-card">
+      <p class="card-title">Hourly Forecast</p>
+      <div class="hourly-scroll" id="hourly-scroll">
+        <!-- populated by JS -->
+      </div>
+    </div>
+
+    <!-- 7-day forecast -->
+    <div class="daily-card">
+      <p class="card-title">7-Day Forecast</p>
+      <div id="daily-list">
+        <!-- populated by JS -->
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Loading state -->
+  <div class="loading-state" id="loading-state">
+    <span class="loading-icon">🌀</span>
+    <p class="loading-text">Reading the atmosphere…</p>
+    <p class="loading-sub">Fetching live weather data</p>
+  </div>
+
+  <!-- Error state -->
+  <div class="error-state" id="error-state">
+    <span class="error-icon">⚠️</span>
+    <p class="error-title">Couldn't reach the skies</p>
+    <p class="error-text" id="error-msg">Unable to fetch weather data. Please check the city name and try again.</p>
+    <button class="retry-btn" onclick="showWelcome()">Try again</button>
+  </div>
+
+  <!-- Welcome state -->
+  <div class="welcome-state" id="welcome-state">
+    <span class="welcome-icon">🌤</span>
+    <p class="welcome-title">Where are you in the world?</p>
+    <p class="welcome-hint">Search for a city above, or let us find your location automatically.</p>
+    <button class="geo-btn" onclick="detectLocation(true)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+      Detect My Location
+    </button>
+  </div>
+
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════
+   CONFIG
+═══════════════════════════════════════════════════ */
+const API_KEY = '7928e2589e9d4b64237b0b60d81ecb0d';
+const BASE    = 'https://api.openweathermap.org/data/2.5';
+const GEO     = 'https://api.openweathermap.org/geo/1.0';
+const AQI_URL = 'https://api.openweathermap.org/data/2.5/air_pollution';
+
+let currentUnit = 'c';
+let currentWeatherData = null;
+let themeTransitionTimer = null;
+
+/* ═══════════════════════════════════════════════════
+   CANVAS BG
+═══════════════════════════════════════════════════ */
+const canvas = document.getElementById('bg-canvas');
+const ctx    = canvas.getContext('2d');
+let W, H, animT = 0;
+let bgTheme = { name: 'default', progress: 0 };
+let targetColors = getThemeColors('default');
+let currentColors = { ...targetColors };
+
+function getThemeColors(theme) {
+  const themes = {
+    default:   { c1:[8,18,42],    c2:[14,28,58],   c3:[10,22,50],  accent:[60,120,200,0.3] },
+    sunny:     { c1:[20,60,120],  c2:[40,100,180],  c3:[15,50,100], accent:[255,200,80,0.3] },
+    cloudy:    { c1:[40,55,75],   c2:[60,75,95],    c3:[30,45,65],  accent:[150,170,200,0.25] },
+    rainy:     { c1:[15,35,60],   c2:[25,50,80],    c3:[10,28,52],  accent:[80,140,200,0.3] },
+    stormy:    { c1:[12,14,22],   c2:[20,22,35],    c3:[8,10,18],   accent:[100,110,160,0.35] },
+    snowy:     { c1:[30,50,80],   c2:[50,75,110],   c3:[25,44,72],  accent:[200,220,255,0.3] },
+    foggy:     { c1:[55,60,70],   c2:[70,75,85],    c3:[45,50,60],  accent:[180,185,195,0.2] },
+    night:     { c1:[4,8,22],     c2:[8,12,32],     c3:[3,6,18],    accent:[80,90,180,0.25] },
+    sunrise:   { c1:[80,40,60],   c2:[120,70,40],   c3:[60,30,50],  accent:[255,140,80,0.35] },
+    sunset:    { c1:[100,40,30],  c2:[140,60,20],   c3:[80,30,25],  accent:[255,100,50,0.35] },
+  };
+  return themes[theme] || themes.default;
+}
+
+function lerpNum(a, b, t) { return a + (b - a) * t; }
+function lerpColor(a, b, t) { return a.map((v,i) => lerpNum(v, b[i], t)); }
+
+function setTheme(name) {
+  if (bgTheme.name === name) return;
+  bgTheme.name = name;
+  bgTheme.progress = 0;
+  targetColors = getThemeColors(name);
+}
+
+function resize() {
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+function drawBG() {
+  bgTheme.progress = Math.min(1, bgTheme.progress + 0.003); // slow blend
+  const s = bgTheme.progress;
+  const c1 = lerpColor(currentColors.c1, targetColors.c1, s);
+  const c2 = lerpColor(currentColors.c2, targetColors.c2, s);
+  const c3 = lerpColor(currentColors.c3, targetColors.c3, s);
+  const ca = targetColors.accent;
+
+  if (s >= 1) { currentColors = { c1:[...c1], c2:[...c2], c3:[...c3], accent:[...ca] }; }
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Base gradient
+  const base = ctx.createLinearGradient(0, 0, W * 0.6, H);
+  base.addColorStop(0,   `rgb(${c1.join(',')})`);
+  base.addColorStop(0.5, `rgb(${c2.join(',')})`);
+  base.addColorStop(1,   `rgb(${c3.join(',')})`);
+  ctx.fillStyle = base; ctx.fillRect(0, 0, W, H);
+
+  // Glow orb 1
+  const gx1 = W * (0.25 + Math.sin(animT * 0.3) * 0.07);
+  const gy1 = H * (0.3  + Math.cos(animT * 0.2) * 0.08);
+  const g1  = ctx.createRadialGradient(gx1, gy1, 0, gx1, gy1, W * 0.55);
+  g1.addColorStop(0, `rgba(${ca[0]},${ca[1]},${ca[2]},${(ca[3]||0.3) * 0.8})`);
+  g1.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g1; ctx.fillRect(0, 0, W, H);
+
+  // Glow orb 2
+  const gx2 = W * (0.75 + Math.sin(animT * 0.22 + 2) * 0.08);
+  const gy2 = H * (0.65 + Math.cos(animT * 0.18 + 1) * 0.1);
+  const g2  = ctx.createRadialGradient(gx2, gy2, 0, gx2, gy2, W * 0.45);
+  g2.addColorStop(0, `rgba(${c2[0]+20},${c2[1]+20},${c2[2]+40},0.25)`);
+  g2.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g2; ctx.fillRect(0, 0, W, H);
+
+  // Top vignette
+  const vTop = ctx.createLinearGradient(0,0,0,H*0.35);
+  vTop.addColorStop(0,'rgba(0,0,0,0.3)'); vTop.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle = vTop; ctx.fillRect(0,0,W,H);
+
+  animT += 0.008;
+  requestAnimationFrame(drawBG);
+}
+drawBG();
+
+/* ═══════════════════════════════════════════════════
+   WEATHER EFFECTS
+═══════════════════════════════════════════════════ */
+// ── Rain
+const rainCanvas = document.getElementById('rain-layer');
+const rainCtx = rainCanvas.getContext('2d');
+let rainDrops = [];
+let rainAnimId = null;
+
+function initRain() {
+  rainCanvas.width = window.innerWidth;
+  rainCanvas.height = window.innerHeight;
+  rainDrops = Array.from({length: 180}, () => ({
+    x: Math.random() * rainCanvas.width,
+    y: Math.random() * rainCanvas.height,
+    len: 10 + Math.random() * 20,
+    speed: 8 + Math.random() * 12,
+    alpha: 0.2 + Math.random() * 0.5,
+    width: 0.5 + Math.random() * 1
+  }));
+}
+
+function drawRain() {
+  if (parseFloat(rainCanvas.style.opacity || 0) < 0.05) { rainAnimId = null; return; }
+  rainCtx.clearRect(0, 0, rainCanvas.width, rainCanvas.height);
+  rainDrops.forEach(d => {
+    rainCtx.beginPath();
+    rainCtx.strokeStyle = `rgba(160,200,240,${d.alpha})`;
+    rainCtx.lineWidth = d.width;
+    rainCtx.moveTo(d.x, d.y);
+    rainCtx.lineTo(d.x - 2, d.y + d.len);
+    rainCtx.stroke();
+    d.y += d.speed; d.x -= 1.5;
+    if (d.y > rainCanvas.height) { d.y = -d.len; d.x = Math.random() * rainCanvas.width; }
+  });
+  rainAnimId = requestAnimationFrame(drawRain);
+}
+
+// ── Snow
+const snowCanvas = document.getElementById('snow-layer');
+const snowCtx = snowCanvas.getContext('2d');
+let snowFlakes = [];
+let snowAnimId = null;
+
+function initSnow() {
+  snowCanvas.width = window.innerWidth;
+  snowCanvas.height = window.innerHeight;
+  snowFlakes = Array.from({length: 120}, () => ({
+    x: Math.random() * snowCanvas.width,
+    y: Math.random() * snowCanvas.height,
+    r: 1.5 + Math.random() * 3.5,
+    speed: 0.5 + Math.random() * 1.5,
+    drift: (Math.random() - 0.5) * 0.5,
+    alpha: 0.4 + Math.random() * 0.5
+  }));
+}
+
+function drawSnow() {
+  if (parseFloat(snowCanvas.style.opacity || 0) < 0.05) { snowAnimId = null; return; }
+  snowCtx.clearRect(0, 0, snowCanvas.width, snowCanvas.height);
+  snowFlakes.forEach(f => {
+    snowCtx.beginPath();
+    snowCtx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+    snowCtx.fillStyle = `rgba(220,235,255,${f.alpha})`;
+    snowCtx.fill();
+    f.y += f.speed; f.x += f.drift + Math.sin(animT + f.y * 0.02) * 0.3;
+    if (f.y > snowCanvas.height) { f.y = -f.r; f.x = Math.random() * snowCanvas.width; }
+  });
+  snowAnimId = requestAnimationFrame(drawSnow);
+}
+
+// ── Stars
+const starsCanvas = document.getElementById('stars-layer');
+const starsCtx = starsCanvas.getContext('2d');
+let starsList = [];
+
+function initStars() {
+  starsCanvas.width = window.innerWidth;
+  starsCanvas.height = window.innerHeight;
+  starsList = Array.from({length: 180}, () => ({
+    x: Math.random() * starsCanvas.width,
+    y: Math.random() * starsCanvas.height * 0.75,
+    r: 0.5 + Math.random() * 1.8,
+    twinkle: Math.random() * Math.PI * 2,
+    speed: 0.01 + Math.random() * 0.02
+  }));
+  drawStars();
+}
+
+function drawStars() {
+  if (parseFloat(starsCanvas.style.opacity || 0) < 0.05) return;
+  starsCtx.clearRect(0, 0, starsCanvas.width, starsCanvas.height);
+  starsList.forEach(s => {
+    s.twinkle += s.speed;
+    const alpha = 0.4 + Math.sin(s.twinkle) * 0.35;
+    starsCtx.beginPath();
+    starsCtx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    starsCtx.fillStyle = `rgba(220,230,255,${alpha})`;
+    starsCtx.fill();
+  });
+  if (parseFloat(starsCanvas.style.opacity || 0) > 0.05) requestAnimationFrame(drawStars);
+}
+
+// ── Fog
+const fogCanvas = document.getElementById('fog-layer');
+const fogCtx = fogCanvas.getContext('2d');
+let fogT = 0;
+
+function initFog() {
+  fogCanvas.width = window.innerWidth;
+  fogCanvas.height = window.innerHeight;
+  drawFog();
+}
+
+function drawFog() {
+  if (parseFloat(fogCanvas.style.opacity || 0) < 0.05) return;
+  fogCtx.clearRect(0, 0, fogCanvas.width, fogCanvas.height);
+  for (let i = 0; i < 4; i++) {
+    const y = fogCanvas.height * (0.3 + i * 0.18) + Math.sin(fogT + i) * 20;
+    const g = fogCtx.createLinearGradient(0, y - 60, 0, y + 60);
+    g.addColorStop(0, 'rgba(200,205,215,0)');
+    g.addColorStop(0.5, `rgba(200,205,215,${0.06 + i * 0.015})`);
+    g.addColorStop(1, 'rgba(200,205,215,0)');
+    fogCtx.fillStyle = g;
+    fogCtx.fillRect(0, y - 60, fogCanvas.width, 120);
+  }
+  fogT += 0.004;
+  requestAnimationFrame(drawFog);
+}
+
+// ── Lightning
+let lightningTimer = null;
+function startLightning() {
+  if (lightningTimer) return;
+  const flash = () => {
+    if (parseFloat(document.getElementById('lightning-layer').style.opacity || 0) < 0.05) { lightningTimer = null; return; }
+    const el = document.getElementById('lightning-layer');
+    el.style.opacity = '0.7';
+    setTimeout(() => { el.style.opacity = '0'; }, 80);
+    setTimeout(() => { el.style.opacity = '0.4'; }, 160);
+    setTimeout(() => { el.style.opacity = '0'; }, 220);
+    lightningTimer = setTimeout(flash, 3000 + Math.random() * 8000);
+  };
+  lightningTimer = setTimeout(flash, 2000 + Math.random() * 4000);
+}
+
+function setWeatherEffect(type) {
+  const rain    = document.getElementById('rain-layer');
+  const snow    = document.getElementById('snow-layer');
+  const fog     = document.getElementById('fog-layer');
+  const stars   = document.getElementById('stars-layer');
+  const lightning = document.getElementById('lightning-layer');
+
+  // Fade all out first
+  [rain, snow, fog, stars].forEach(el => el.style.opacity = '0');
+  lightning.style.opacity = '0';
+  if (lightningTimer) { clearTimeout(lightningTimer); lightningTimer = null; }
+
+  if (type === 'rain' || type === 'drizzle') {
+    initRain();
+    setTimeout(() => { rain.style.opacity = '0.85'; if (!rainAnimId) drawRain(); }, 400);
+  } else if (type === 'storm') {
+    initRain();
+    setTimeout(() => { rain.style.opacity = '1'; if (!rainAnimId) drawRain(); lightning.style.opacity = '0.04'; startLightning(); }, 400);
+  } else if (type === 'snow') {
+    initSnow();
+    setTimeout(() => { snow.style.opacity = '0.9'; if (!snowAnimId) drawSnow(); }, 400);
+  } else if (type === 'fog') {
+    initFog();
+    setTimeout(() => { fog.style.opacity = '0.9'; }, 400);
+  } else if (type === 'night') {
+    initStars();
+    setTimeout(() => { stars.style.opacity = '0.85'; drawStars(); }, 400);
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   WEATHER ICON MAPPING
+═══════════════════════════════════════════════════ */
+function getWeatherIcon(id, isNight) {
+  if (id >= 200 && id < 300) return '⛈️';
+  if (id >= 300 && id < 400) return '🌦️';
+  if (id >= 500 && id < 510) {
+    if (id === 500 || id === 501) return '🌧️';
+    if (id >= 502) return '⛈️';
+  }
+  if (id >= 510 && id < 600) return '🌧️';
+  if (id >= 600 && id < 700) return id <= 601 ? '❄️' : '🌨️';
+  if (id >= 700 && id < 800) {
+    if (id === 741) return '🌫️';
+    return '🌫️';
+  }
+  if (id === 800) return isNight ? '🌙' : '☀️';
+  if (id === 801) return isNight ? '🌤' : '🌤';
+  if (id === 802) return '⛅';
+  if (id >= 803) return '☁️';
+  return '🌡️';
+}
+
+function getWeatherTheme(id, isNight) {
+  if (isNight) return 'night';
+  if (id >= 200 && id < 300) return 'stormy';
+  if (id >= 300 && id < 400) return 'rainy';
+  if (id >= 500 && id < 600) {
+    if (id >= 502) return 'stormy';
+    return 'rainy';
+  }
+  if (id >= 600 && id < 700) return 'snowy';
+  if (id >= 700 && id < 800) return 'foggy';
+  if (id === 800) return 'sunny';
+  if (id <= 802) return 'sunny';
+  return 'cloudy';
+}
+
+function getWeatherEffect(id, isNight) {
+  if (isNight) return 'night';
+  if (id >= 200 && id < 300) return 'storm';
+  if ((id >= 300 && id < 400) || (id >= 500 && id < 600)) return 'rain';
+  if (id >= 600 && id < 700) return 'snow';
+  if (id >= 700 && id < 800) return 'fog';
+  return 'none';
+}
+
+function getUVLabel(uv) {
+  if (uv <= 2) return 'Low';
+  if (uv <= 5) return 'Moderate';
+  if (uv <= 7) return 'High';
+  if (uv <= 10) return 'Very High';
+  return 'Extreme';
+}
+
+function getAQILabel(aqi) {
+  const labels = ['', 'Good', 'Fair', 'Moderate', 'Poor', 'Very Poor'];
+  return labels[aqi] || 'Unknown';
+}
+
+function getAQIColor(aqi) {
+  const colors = ['', '#4ecb71', '#a8d08d', '#f0c030', '#e07050', '#c04040'];
+  return colors[aqi] || '#aaa';
+}
+
+function getHumidityLabel(h) {
+  if (h < 30) return 'Very dry';
+  if (h < 50) return 'Comfortable';
+  if (h < 70) return 'Moderate';
+  return 'Very humid';
+}
+
+function getWindDir(deg) {
+  const dirs = ['N','NE','E','SE','S','SW','W','NW'];
+  return dirs[Math.round(deg / 45) % 8];
+}
+
+/* ═══════════════════════════════════════════════════
+   UNIT CONVERSION
+═══════════════════════════════════════════════════ */
+function toDisplay(tempK) {
+  if (currentUnit === 'c') return Math.round(tempK - 273.15);
+  return Math.round((tempK - 273.15) * 9/5 + 32);
+}
+function unitSuffix() { return currentUnit === 'c' ? '°C' : '°F'; }
+
+function setUnit(u) {
+  if (currentUnit === u) return;
+  currentUnit = u;
+  document.getElementById('btn-c').classList.toggle('active', u === 'c');
+  document.getElementById('btn-f').classList.toggle('active', u === 'f');
+  if (currentWeatherData) renderWeather(currentWeatherData);
+}
+
+/* ═══════════════════════════════════════════════════
+   TIME HELPERS
+═══════════════════════════════════════════════════ */
+function formatTime(unix, tz) {
+  const d = new Date((unix + tz) * 1000);
+  let h = d.getUTCHours(), m = d.getUTCMinutes();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${h}:${m.toString().padStart(2,'0')} ${ampm}`;
+}
+
+function formatHour(unix, tz) {
+  const d = new Date((unix + tz) * 1000);
+  let h = d.getUTCHours();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${h}${ampm}`;
+}
+
+function formatDay(unix, tz, isFirst) {
+  if (isFirst) return 'Today';
+  const d = new Date((unix + tz) * 1000);
+  return d.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' });
+}
+
+function getLocalTimeString(unix, tz) {
+  const d = new Date((unix + tz) * 1000);
+  return d.toUTCString().slice(0, 25);
+}
+
+/* ═══════════════════════════════════════════════════
+   SUN ARC ANIMATION
+═══════════════════════════════════════════════════ */
+function updateSunArc(sunrise, sunset, now) {
+  const sunDot  = document.getElementById('sun-dot');
+  const sunCore = document.getElementById('sun-dot-core');
+  const total = sunset - sunrise;
+  const elapsed = now - sunrise;
+  let progress = Math.max(0, Math.min(1, elapsed / total));
+
+  // Bezier curve: M10,75 Q150,-10 290,75
+  const t = progress;
+  const p1x = 10, p1y = 75;
+  const cpx = 150, cpy = -10;
+  const p2x = 290, p2y = 75;
+  const x = (1-t)*(1-t)*p1x + 2*(1-t)*t*cpx + t*t*p2x;
+  const y = (1-t)*(1-t)*p1y + 2*(1-t)*t*cpy + t*t*p2y;
+
+  sunDot.setAttribute('cx', x);
+  sunDot.setAttribute('cy', y);
+  sunCore.setAttribute('cx', x);
+  sunCore.setAttribute('cy', y);
+}
+
+/* ═══════════════════════════════════════════════════
+   RENDER WEATHER
+═══════════════════════════════════════════════════ */
+function renderWeather(data) {
+  const w = data.weather;
+  const tz = data.timezone_offset;
+  const nowUnix = data.dt;
+  const sunriseUnix = data.sys.sunrise;
+  const sunsetUnix  = data.sys.sunset;
+  const isNight = nowUnix < sunriseUnix || nowUnix > sunsetUnix;
+
+  const weatherId = w[0].id;
+  const icon = getWeatherIcon(weatherId, isNight);
+  const themeName = getWeatherTheme(weatherId, isNight);
+  const effectName = getWeatherEffect(weatherId, isNight);
+
+  // Theme & effect
+  setTheme(themeName);
+  setWeatherEffect(effectName);
+
+  // Location & time
+  document.getElementById('loc-name').textContent = `${data.name}, ${data.sys.country}`;
+  document.getElementById('loc-time').textContent  = formatTime(nowUnix, tz);
+
+  // Temperature
+  const temp = toDisplay(data.main.temp);
+  document.getElementById('temp-display').innerHTML = `${temp}<span class="temp-unit">${unitSuffix()}</span>`;
+  document.getElementById('feels-like').textContent = `${toDisplay(data.main.feels_like)}${unitSuffix()}`;
+
+  // Condition
+  document.getElementById('condition-label').textContent = w[0].description.replace(/\b\w/g, c => c.toUpperCase());
+  document.getElementById('main-icon').textContent = icon;
+
+  // Hi/Lo
+  const hi = toDisplay(data.main.temp_max);
+  const lo = toDisplay(data.main.temp_min);
+  document.getElementById('hi-lo').innerHTML = `H: <span>${hi}${unitSuffix()}</span> · L: <span>${lo}${unitSuffix()}</span>`;
+
+  // Details
+  document.getElementById('d-humidity').textContent = `${data.main.humidity}%`;
+  document.getElementById('d-humidity-sub').textContent = getHumidityLabel(data.main.humidity);
+
+  const windMs = data.wind.speed;
+  const windDisplay = currentUnit === 'c' ? `${Math.round(windMs * 3.6)} km/h` : `${Math.round(windMs * 2.237)} mph`;
+  document.getElementById('d-wind').textContent = windDisplay;
+  document.getElementById('d-wind-dir').textContent = `From ${getWindDir(data.wind.deg || 0)}`;
+
+  document.getElementById('d-pressure').textContent = data.main.pressure;
+
+  const vis = data.visibility ? (data.visibility / 1000).toFixed(1) : '—';
+  document.getElementById('d-visibility').textContent = vis;
+
+  const precip = data.rain ? (data.rain['1h'] || 0).toFixed(1) : '0.0';
+  document.getElementById('d-precip').textContent = `${precip} mm`;
+
+  document.getElementById('d-cloud').textContent = `${data.clouds?.all || 0}%`;
+  const cloudDesc = (data.clouds?.all || 0) < 25 ? 'Clear skies' : (data.clouds?.all || 0) < 60 ? 'Partly cloudy' : 'Overcast';
+  document.getElementById('d-cloud').nextElementSibling.textContent = cloudDesc;
+
+  // Dew point approx
+  const tempC = data.main.temp - 273.15;
+  const hum = data.main.humidity;
+  const dewC = tempC - ((100 - hum) / 5);
+  const dewDisplay = currentUnit === 'c' ? `${Math.round(dewC)}°C` : `${Math.round(dewC * 9/5 + 32)}°F`;
+  document.getElementById('d-dew').textContent = dewDisplay;
+
+  // Sunrise / Sunset
+  document.getElementById('sunrise-val').textContent = formatTime(sunriseUnix, tz);
+  document.getElementById('sunset-val').textContent  = formatTime(sunsetUnix, tz);
+  updateSunArc(sunriseUnix, sunsetUnix, nowUnix);
+
+  // UV index (from OWM one-call if available, else estimate)
+  const uvVal = data.uv || 0;
+  document.getElementById('d-uv').textContent = uvVal.toFixed(1);
+  document.getElementById('d-uv-label').textContent = getUVLabel(uvVal);
+
+  showContent();
+}
+
+function renderForecast(forecast, tz) {
+  const hourlyEl = document.getElementById('hourly-scroll');
+  hourlyEl.innerHTML = '';
+  const now = Date.now() / 1000;
+
+  const hourItems = forecast.list.slice(0, 12);
+  hourItems.forEach((item, idx) => {
+    const isNow = idx === 0;
+    const icon = getWeatherIcon(item.weather[0].id, false);
+    const temp = toDisplay(item.main.temp);
+    const pop = item.pop ? Math.round(item.pop * 100) : 0;
+
+    const el = document.createElement('div');
+    el.className = `hour-item${isNow ? ' now' : ''}`;
+    el.innerHTML = `
+      <span class="hour-time">${isNow ? 'Now' : formatHour(item.dt, tz)}</span>
+      <span class="hour-icon">${icon}</span>
+      <span class="hour-temp">${temp}${unitSuffix()}</span>
+      ${pop > 10 ? `<span class="hour-pop">💧${pop}%</span>` : '<span class="hour-pop"></span>'}
+    `;
+    hourlyEl.appendChild(el);
+  });
+
+  // Daily (group by day)
+  const dailyEl = document.getElementById('daily-list');
+  dailyEl.innerHTML = '';
+  const days = {};
+  forecast.list.forEach(item => {
+    const d = new Date((item.dt + tz) * 1000);
+    const key = `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
+    if (!days[key]) days[key] = { items: [], dt: item.dt };
+    days[key].items.push(item);
+  });
+
+  const dayKeys = Object.keys(days).slice(0, 7);
+  // Find global min/max for bar scaling
+  let absMin = Infinity, absMax = -Infinity;
+  dayKeys.forEach(k => {
+    days[k].items.forEach(it => {
+      absMin = Math.min(absMin, toDisplay(it.main.temp_min));
+      absMax = Math.max(absMax, toDisplay(it.main.temp_max));
+    });
+  });
+
+  dayKeys.forEach((key, idx) => {
+    const dayData = days[key];
+    const temps = dayData.items.map(it => toDisplay(it.main.temp));
+    const hi = Math.max(...dayData.items.map(it => toDisplay(it.main.temp_max)));
+    const lo = Math.min(...dayData.items.map(it => toDisplay(it.main.temp_min)));
+    const mid = dayData.items[Math.floor(dayData.items.length / 2)];
+    const icon = getWeatherIcon(mid.weather[0].id, false);
+    const desc = mid.weather[0].description;
+    const pop  = Math.round((mid.pop || 0) * 100);
+    const dayName = formatDay(dayData.dt, tz, idx === 0);
+
+    const barLeft  = absMax === absMin ? 0 : ((lo - absMin) / (absMax - absMin)) * 100;
+    const barWidth = absMax === absMin ? 50 : ((hi - lo) / (absMax - absMin)) * 100 || 5;
+
+    const row = document.createElement('div');
+    row.className = 'day-row';
+    row.innerHTML = `
+      <span class="day-name${idx === 0 ? ' today' : ''}">${dayName}</span>
+      <span class="day-icon">${icon}</span>
+      <span class="day-desc">${desc}</span>
+      ${pop > 10 ? `<span class="day-pop">💧${pop}%</span>` : '<span class="day-pop"></span>'}
+      <div class="day-bar" style="max-width:80px">
+        <div class="day-bar-fill" style="margin-left:${barLeft}%;width:${barWidth}%"></div>
+      </div>
+      <div class="day-temps">
+        <span class="day-hi">${hi}°</span>
+        <span class="day-lo">${lo}°</span>
+      </div>
+    `;
+    dailyEl.appendChild(row);
+  });
+}
+
+async function fetchAQI(lat, lon) {
+  try {
+    const r = await fetch(`${AQI_URL}?lat=${lat}&lon=${lon}&appid=${API_KEY}`);
+    if (!r.ok) return;
+    const d = await r.json();
+    const aqi = d.list[0]?.main?.aqi;
+    if (!aqi) return;
+    const color = getAQIColor(aqi);
+    const label = getAQILabel(aqi);
+    document.getElementById('aqi-number').textContent = aqi;
+    document.getElementById('aqi-number').style.color = color;
+    document.getElementById('aqi-label').textContent = label;
+    document.getElementById('aqi-bar').style.width = `${(aqi / 5) * 100}%`;
+    document.getElementById('aqi-bar').style.background = `linear-gradient(90deg, #4ecb71, ${color})`;
+  } catch(e) {
+    document.getElementById('aqi-label').textContent = 'Unavailable';
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   FETCH WEATHER
+═══════════════════════════════════════════════════ */
+async function fetchWeatherByCity(city) {
+  showLoading();
+  try {
+    const [curr, fore] = await Promise.all([
+      fetch(`${BASE}/weather?q=${encodeURIComponent(city)}&appid=${API_KEY}`).then(r => { if(!r.ok) throw new Error(r.status); return r.json(); }),
+      fetch(`${BASE}/forecast?q=${encodeURIComponent(city)}&appid=${API_KEY}`).then(r => r.json())
+    ]);
+    // Try UV index from One Call (best effort)
+    try {
+      const uv = await fetch(`${BASE}/uvi?lat=${curr.coord.lat}&lon=${curr.coord.lon}&appid=${API_KEY}`).then(r=>r.json());
+      curr.uv = uv.value || 0;
+    } catch(e) { curr.uv = 0; }
+    currentWeatherData = curr;
+    renderWeather(curr);
+    renderForecast(fore, curr.timezone);
+    fetchAQI(curr.coord.lat, curr.coord.lon);
+  } catch(e) {
+    showError('City not found or API error. Please check the city name.');
+  }
+}
+
+async function fetchWeatherByCoords(lat, lon) {
+  showLoading();
+  try {
+    const [curr, fore] = await Promise.all([
+      fetch(`${BASE}/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}`).then(r => { if(!r.ok) throw new Error(r.status); return r.json(); }),
+      fetch(`${BASE}/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}`).then(r => r.json())
+    ]);
+    try {
+      const uv = await fetch(`${BASE}/uvi?lat=${lat}&lon=${lon}&appid=${API_KEY}`).then(r=>r.json());
+      curr.uv = uv.value || 0;
+    } catch(e) { curr.uv = 0; }
+    currentWeatherData = curr;
+    renderWeather(curr);
+    renderForecast(fore, curr.timezone);
+    fetchAQI(lat, lon);
+  } catch(e) {
+    showError('Failed to retrieve weather data for your location.');
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   UI STATES
+═══════════════════════════════════════════════════ */
+function showLoading() {
+  document.getElementById('main-content').classList.remove('visible');
+  document.getElementById('welcome-state').style.display  = 'none';
+  document.getElementById('error-state').classList.remove('visible');
+  document.getElementById('loading-state').classList.add('visible');
+}
+
+function showContent() {
+  document.getElementById('loading-state').classList.remove('visible');
+  document.getElementById('error-state').classList.remove('visible');
+  document.getElementById('welcome-state').style.display = 'none';
+  document.getElementById('main-content').classList.add('visible');
+}
+
+function showError(msg) {
+  document.getElementById('loading-state').classList.remove('visible');
+  document.getElementById('main-content').classList.remove('visible');
+  document.getElementById('welcome-state').style.display = 'none';
+  document.getElementById('error-msg').textContent = msg;
+  document.getElementById('error-state').classList.add('visible');
+}
+
+function showWelcome() {
+  document.getElementById('loading-state').classList.remove('visible');
+  document.getElementById('error-state').classList.remove('visible');
+  document.getElementById('main-content').classList.remove('visible');
+  document.getElementById('welcome-state').style.display = 'flex';
+}
+
+/* ═══════════════════════════════════════════════════
+   CONTROLS
+═══════════════════════════════════════════════════ */
+function doSearch() {
+  const val = document.getElementById('search-input').value.trim();
+  if (!val) return;
+  fetchWeatherByCity(val);
+}
+
+document.getElementById('search-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doSearch();
+});
+
+function detectLocation(fromButton) {
+  fromButton = fromButton || false;
+  if (!navigator.geolocation) { if (fromButton) showError('Geolocation not supported.'); else showWelcome(); return; }
+  if (fromButton) showLoading();
+  navigator.geolocation.getCurrentPosition(
+    function(pos) { fetchWeatherByCoords(pos.coords.latitude, pos.coords.longitude); },
+    function() {
+      showWelcome();
+      if (fromButton) { var h = document.querySelector('.welcome-hint'); if(h) h.textContent = 'Location access denied. Please search for a city above.'; }
+    },
+    { timeout: 8000, maximumAge: 60000, enableHighAccuracy: false }
+  );
+}
+
+/* ═══════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════ */
+window.addEventListener('load', () => {
+  showWelcome();
+  detectLocation(false); // silently attempt geo; falls back to welcome if denied
+});
+
+// Update clock every minute
+setInterval(() => {
+  if (currentWeatherData) {
+    const now = Math.floor(Date.now() / 1000);
+    const tz  = currentWeatherData.timezone;
+    document.getElementById('loc-time').textContent = formatTime(now, tz);
+    updateSunArc(currentWeatherData.sys.sunrise, currentWeatherData.sys.sunset, now);
+  }
+}, 60000);
+</script>
+</body>
+</html>
