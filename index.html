@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Aether — Feel The Weather</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --glass-bg: rgba(255,255,255,0.07);
+    --glass-border: rgba(255,255,255,0.14);
+    --glass-shadow: 0 8px 60px rgba(0,0,0,0.35);
+    --accent: #a8d8ea;
+    --accent2: #ffd6a5;
+    --text-primary: rgba(255,255,255,0.96);
+    --text-secondary: rgba(255,255,255,0.62);
+    --blur: blur(24px);
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text-primary);
+  }
+
+  /* ── CANVAS BACKGROUND ── */
+  #bg-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+  }
+
+  /* ── NOISE OVERLAY ── */
+  .noise {
+    position: fixed; inset: 0; z-index: 1;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    opacity: 0.45;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  .scene {
+    position: relative; z-index: 2;
+    width: 100%; height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 2rem;
+    overflow: hidden;
+  }
+
+  /* ── FLOATING ORBS ── */
+  .orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0;
+    animation: orbFloat 18s ease-in-out infinite, orbFadeIn 3s ease forwards;
+    pointer-events: none;
+  }
+  .orb1 { width: 520px; height: 520px; background: radial-gradient(circle, rgba(100,180,255,0.22) 0%, transparent 70%); top: -100px; left: -120px; animation-delay: 0s, 0.5s; }
+  .orb2 { width: 400px; height: 400px; background: radial-gradient(circle, rgba(255,200,120,0.18) 0%, transparent 70%); bottom: -80px; right: -80px; animation-delay: 6s, 0.8s; }
+  .orb3 { width: 300px; height: 300px; background: radial-gradient(circle, rgba(180,120,255,0.12) 0%, transparent 70%); top: 40%; left: 60%; animation-delay: 3s, 1s; }
+
+  @keyframes orbFloat {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(30px, -25px) scale(1.04); }
+    66% { transform: translate(-20px, 20px) scale(0.97); }
+  }
+  @keyframes orbFadeIn { to { opacity: 1; } }
+
+  /* ── PARTICLES ── */
+  .particle {
+    position: absolute;
+    width: 2px; height: 2px;
+    background: rgba(255,255,255,0.7);
+    border-radius: 50%;
+    animation: particleDrift linear infinite;
+    pointer-events: none;
+  }
+  @keyframes particleDrift {
+    0% { transform: translateY(0) translateX(0); opacity: 0; }
+    10% { opacity: 0.8; }
+    90% { opacity: 0.4; }
+    100% { transform: translateY(-100vh) translateX(30px); opacity: 0; }
+  }
+
+  /* ── HERO GLASS BOX ── */
+  .hero-glass {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: var(--blur);
+    -webkit-backdrop-filter: var(--blur);
+    border-radius: 32px;
+    padding: 56px 64px;
+    max-width: 680px;
+    width: 100%;
+    text-align: center;
+    box-shadow: var(--glass-shadow), inset 0 1px 0 rgba(255,255,255,0.12);
+    transform: translateY(40px);
+    opacity: 0;
+    animation: heroReveal 1.4s cubic-bezier(0.22,1,0.36,1) 0.4s forwards;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-glass::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 60%; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  }
+
+  @keyframes heroReveal {
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  /* ── EYEBROW ── */
+  .eyebrow {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 1.4rem;
+    opacity: 0;
+    animation: fadeUp 1s ease 1s forwards;
+  }
+
+  /* ── LOGO / TITLE ── */
+  .hero-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(4rem, 10vw, 6.5rem);
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    line-height: 0.95;
+    background: linear-gradient(160deg, #ffffff 30%, rgba(168,216,234,0.85) 70%, rgba(255,214,165,0.7) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 0.3rem;
+    opacity: 0;
+    animation: fadeUp 1s ease 1.1s forwards;
+  }
+  .hero-title em {
+    font-style: italic;
+    font-weight: 300;
+  }
+
+  .tagline-primary {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(1.1rem, 3vw, 1.5rem);
+    font-weight: 300;
+    font-style: italic;
+    color: rgba(255,255,255,0.55);
+    margin-bottom: 2.2rem;
+    opacity: 0;
+    animation: fadeUp 1s ease 1.25s forwards;
+    letter-spacing: 0.01em;
+  }
+
+  .divider {
+    width: 48px; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(168,216,234,0.6), transparent);
+    margin: 0 auto 2.2rem;
+    opacity: 0;
+    animation: fadeUp 1s ease 1.35s forwards;
+  }
+
+  .tagline-body {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 300;
+    line-height: 1.75;
+    color: var(--text-secondary);
+    margin-bottom: 3rem;
+    max-width: 420px;
+    margin-left: auto;
+    margin-right: auto;
+    opacity: 0;
+    animation: fadeUp 1s ease 1.45s forwards;
+  }
+
+  /* ── CTA BUTTON ── */
+  .cta-wrap {
+    display: flex; flex-direction: column; align-items: center; gap: 1rem;
+    opacity: 0;
+    animation: fadeUp 1s ease 1.6s forwards;
+  }
+
+  .cta-btn {
+    display: inline-flex; align-items: center; gap: 0.75rem;
+    background: linear-gradient(135deg, rgba(168,216,234,0.22) 0%, rgba(255,255,255,0.1) 100%);
+    border: 1px solid rgba(168,216,234,0.4);
+    color: #fff;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 1rem 2.8rem;
+    border-radius: 100px;
+    text-decoration: none;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.22,1,0.36,1);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 30px rgba(168,216,234,0.12), inset 0 1px 0 rgba(255,255,255,0.15);
+  }
+  .cta-btn::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(168,216,234,0.25), rgba(255,255,255,0.08));
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  .cta-btn:hover::before { opacity: 1; }
+  .cta-btn:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 0 50px rgba(168,216,234,0.3), 0 16px 40px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.2);
+    border-color: rgba(168,216,234,0.65);
+  }
+  .cta-btn:active { transform: translateY(0) scale(0.99); }
+
+  .cta-arrow {
+    width: 18px; height: 18px;
+    transition: transform 0.4s cubic-bezier(0.22,1,0.36,1);
+  }
+  .cta-btn:hover .cta-arrow { transform: translateX(4px); }
+
+  .cta-hint {
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 0.08em;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  /* ── BOTTOM ACCENT STRIP ── */
+  .weather-strip {
+    position: absolute;
+    bottom: 2.5rem; left: 50%;
+    transform: translateX(-50%);
+    display: flex; align-items: center; gap: 2rem;
+    opacity: 0;
+    animation: fadeUp 1s ease 2s forwards;
+  }
+  .strip-item {
+    display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
+    font-family: 'DM Sans', sans-serif;
+    color: rgba(255,255,255,0.35);
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .strip-icon { font-size: 1.3rem; opacity: 0.6; }
+  .strip-dot { width: 3px; height: 3px; border-radius: 50%; background: rgba(255,255,255,0.2); }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 640px) {
+    .hero-glass { padding: 40px 28px; border-radius: 24px; }
+    .hero-title { font-size: 3.8rem; }
+    .weather-strip { gap: 1.2rem; bottom: 1.5rem; }
+    .strip-dot { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+<div class="noise"></div>
+
+<!-- Floating Orbs -->
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="orb orb3"></div>
+
+<!-- Particles -->
+<div id="particles"></div>
+
+<div class="scene">
+  <div class="hero-glass">
+    <p class="eyebrow">Live Weather Experience</p>
+    <h1 class="hero-title"><em>Aether</em></h1>
+    <p class="tagline-primary">Feel the world's breath</p>
+    <div class="divider"></div>
+    <p class="tagline-body">A premium weather experience that doesn't just show the forecast — it makes you feel it. Cinematic atmospheres, live data, and immersive design.</p>
+    <div class="cta-wrap">
+      <a href="app.html" class="cta-btn">
+        Open Weather
+        <svg class="cta-arrow" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 9h12M9 3l6 6-6 6"/>
+        </svg>
+      </a>
+      <span class="cta-hint">Auto-detects your location</span>
+    </div>
+  </div>
+
+  <div class="weather-strip">
+    <div class="strip-item"><span class="strip-icon">☀️</span><span>Sunny</span></div>
+    <div class="strip-dot"></div>
+    <div class="strip-item"><span class="strip-icon">🌧️</span><span>Rainy</span></div>
+    <div class="strip-dot"></div>
+    <div class="strip-item"><span class="strip-icon">❄️</span><span>Snowy</span></div>
+    <div class="strip-dot"></div>
+    <div class="strip-item"><span class="strip-icon">⛈️</span><span>Storm</span></div>
+    <div class="strip-dot"></div>
+    <div class="strip-item"><span class="strip-icon">🌙</span><span>Night</span></div>
+  </div>
+</div>
+
+<script>
+// ── ANIMATED CANVAS BACKGROUND ──
+const canvas = document.getElementById('bg-canvas');
+const ctx = canvas.getContext('2d');
+
+let W, H, t = 0;
+const layers = [
+  { speed: 0.0003, color1: [14, 28, 62], color2: [8, 22, 48], offsetX: 0.5, offsetY: 0.35, radius: 0.7 },
+  { speed: 0.0007, color1: [30, 60, 100], color2: [10, 35, 70], offsetX: 0.3, offsetY: 0.6, radius: 0.5 },
+  { speed: 0.0005, color1: [55, 90, 130], color2: [20, 50, 90], offsetX: 0.7, offsetY: 0.4, radius: 0.4 },
+];
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+function lerpColor(a, b, t) {
+  return a.map((v, i) => Math.round(v + (b[i] - v) * t));
+}
+
+function drawFrame() {
+  t += 0.01;
+  ctx.clearRect(0, 0, W, H);
+
+  // Base deep sky gradient
+  const base = ctx.createLinearGradient(0, 0, W * 0.5, H);
+  base.addColorStop(0, `rgb(8,18,42)`);
+  base.addColorStop(0.5, `rgb(14,28,58)`);
+  base.addColorStop(1, `rgb(6,14,34)`);
+  ctx.fillStyle = base;
+  ctx.fillRect(0, 0, W, H);
+
+  // Animated gradient layers
+  layers.forEach((layer, i) => {
+    const phase = t * layer.speed * 100 + i * 2.1;
+    const cx = W * (layer.offsetX + Math.sin(phase) * 0.12);
+    const cy = H * (layer.offsetY + Math.cos(phase * 0.7) * 0.1);
+    const r = Math.min(W, H) * layer.radius;
+
+    const pulse = 0.5 + Math.sin(phase * 1.3) * 0.05;
+    const c = lerpColor(layer.color1, layer.color2, pulse);
+
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    g.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]}, 0.55)`);
+    g.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]}, 0)`);
+
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  });
+
+  // Subtle aurora streak
+  for (let k = 0; k < 3; k++) {
+    const ky = H * (0.15 + k * 0.25 + Math.sin(t * 0.3 + k) * 0.05);
+    const grad = ctx.createLinearGradient(0, ky - 60, 0, ky + 60);
+    const alpha = 0.04 + Math.sin(t * 0.5 + k * 1.3) * 0.02;
+    grad.addColorStop(0, 'rgba(100,200,255,0)');
+    grad.addColorStop(0.5, `rgba(80,180,240,${alpha})`);
+    grad.addColorStop(1, 'rgba(100,200,255,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, ky - 60, W, 120);
+  }
+
+  requestAnimationFrame(drawFrame);
+}
+drawFrame();
+
+// ── PARTICLES ──
+const container = document.getElementById('particles');
+for (let i = 0; i < 40; i++) {
+  const p = document.createElement('div');
+  p.className = 'particle';
+  const size = Math.random() * 2.5 + 1;
+  p.style.cssText = `
+    width:${size}px; height:${size}px;
+    left:${Math.random() * 100}%;
+    top:${Math.random() * 100 + 100}%;
+    animation-duration:${12 + Math.random() * 20}s;
+    animation-delay:${Math.random() * 15}s;
+    opacity:${Math.random() * 0.6 + 0.2};
+  `;
+  container.appendChild(p);
+}
+</script>
+</body>
+  </html>
